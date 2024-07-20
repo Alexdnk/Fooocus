@@ -535,17 +535,40 @@ with shared.gradio_root:
 
         with gr.Column(scale=1, visible=modules.config.default_advanced_checkbox) as advanced_column:
             with gr.Tab(label='Settings'):
-                if not args_manager.args.disable_preset_selection:
-                    preset_selection = gr.Dropdown(label='Preset',
-                                                   choices=modules.config.available_presets,
-                                                   value=args_manager.args.preset if args_manager.args.preset else "initial",
-                                                   interactive=True)
+                with gr.Row():
+                    if not args_manager.args.disable_preset_selection:
+                        preset_selection = gr.Dropdown(label='Preset',
+                                                       choices=modules.config.available_presets,
+                                                       value=args_manager.args.preset if args_manager.args.preset else "initial",
+                                                       interactive=True, scale=3)
 
-                performance_selection = gr.Radio(label='Performance',
-                                                 choices=flags.Performance.values(),
-                                                 value=modules.config.default_performance,
-                                                 elem_classes=['performance_selection'])
-
+                    performance_selection = gr.Dropdown(label='Performance',
+                                                     choices=flags.Performance.values(),
+                                                     value=modules.config.default_performance,
+                                                     elem_classes=['performance_selection'], scale=1)
+                                                     
+                with gr.Row():
+                    sampler_name = gr.Dropdown(label='Sampler', choices=flags.sampler_list,
+                                               value=modules.config.default_sampler)
+                    scheduler_name = gr.Dropdown(label='Scheduler', choices=flags.scheduler_list,
+                                                 value=modules.config.default_scheduler)
+                overwrite_step = gr.Slider(label='Sampling Step',
+                                           minimum=-1, maximum=200, step=1,
+                                           value=modules.config.default_overwrite_step)
+                with gr.Row():
+                    refiner_swap_method = gr.Dropdown(label='Refiner swap method', value=flags.refiner_swap_method,
+                                                      choices=['joint', 'separate', 'vae'], scale=1)
+                    overwrite_switch = gr.Slider(label='Refiner Switch Step',
+                                                 minimum=-1, maximum=200, step=1,
+                                                 value=modules.config.default_overwrite_switch, scale=3)
+                overwrite_vary_strength = gr.Slider(label='Denoising Strength of "Vary"',
+                                                    minimum=-0.01, maximum=1.0, step=0.01, value=-0.01)
+                overwrite_upscale_strength = gr.Slider(label='Denoising Strength of "Upscale"',
+                                                       minimum=-0.01, maximum=1.0, step=0.01, value=-0.01)
+                clip_skip = gr.Slider(label='CLIP Skip', minimum=1, maximum=flags.clip_skip_max, step=1,
+                                         value=modules.config.default_clip_skip,
+                                         info='Bypass CLIP layers to avoid overfitting (use 1 to not skip any layers, 2 is recommended).')
+                                         
                 with gr.Accordion(label='Aspect Ratios', open=False, elem_id='aspect_ratios_accordion') as aspect_ratios_accordion:
                     aspect_ratios_selection = gr.Radio(label='Aspect Ratios', show_label=False,
                                                        choices=modules.config.available_aspect_ratios_labels,
@@ -556,18 +579,20 @@ with shared.gradio_root:
                     aspect_ratios_selection.change(lambda x: None, inputs=aspect_ratios_selection, queue=False, show_progress=False, _js='(x)=>{refresh_aspect_ratios_label(x);}')
                     shared.gradio_root.load(lambda x: None, inputs=aspect_ratios_selection, queue=False, show_progress=False, _js='(x)=>{refresh_aspect_ratios_label(x);}')
 
-                image_number = gr.Slider(label='Image Number', minimum=1, maximum=modules.config.default_max_image_number, step=1, value=modules.config.default_image_number)
-
-                output_format = gr.Radio(label='Output Format',
-                                         choices=flags.OutputFormat.list(),
-                                         value=modules.config.default_output_format)
+                with gr.Row():
+                    output_format = gr.Dropdown(label='Output Format',
+                                             choices=flags.OutputFormat.list(),
+                                             value=modules.config.default_output_format, scale=1)
+                    image_number = gr.Slider(label='Image Number', minimum=1, maximum=modules.config.default_max_image_number, step=1, value=modules.config.default_image_number, scale=3)
 
                 negative_prompt = gr.Textbox(label='Negative Prompt', show_label=True, placeholder="Type prompt here.",
                                              info='Describing what you do not want to see.', lines=2,
                                              elem_id='negative_prompt',
                                              value=modules.config.default_prompt_negative)
-                seed_random = gr.Checkbox(label='Random', value=True)
-                image_seed = gr.Textbox(label='Seed', value=0, max_lines=1, visible=False) # workaround for https://github.com/gradio-app/gradio/issues/5354
+                                             
+                with gr.Row():
+                    seed_random = gr.Checkbox(label='Random', value=True, scale=1)
+                    image_seed = gr.Textbox(label='Seed', value=0, max_lines=1, visible=False, scale=3) # workaround for https://github.com/gradio-app/gradio/issues/5354
 
                 def random_checked(r):
                     return gr.update(visible=not r)
@@ -683,20 +708,10 @@ with shared.gradio_root:
                                                    step=0.001, value=0.3,
                                                    info='When to end the guidance from positive/negative ADM. ')
 
-                        refiner_swap_method = gr.Dropdown(label='Refiner swap method', value=flags.refiner_swap_method,
-                                                          choices=['joint', 'separate', 'vae'])
-
                         adaptive_cfg = gr.Slider(label='CFG Mimicking from TSNR', minimum=1.0, maximum=30.0, step=0.01,
                                                  value=modules.config.default_cfg_tsnr,
                                                  info='Enabling Fooocus\'s implementation of CFG mimicking for TSNR '
                                                       '(effective when real CFG > mimicked CFG).')
-                        clip_skip = gr.Slider(label='CLIP Skip', minimum=1, maximum=flags.clip_skip_max, step=1,
-                                                 value=modules.config.default_clip_skip,
-                                                 info='Bypass CLIP layers to avoid overfitting (use 1 to not skip any layers, 2 is recommended).')
-                        sampler_name = gr.Dropdown(label='Sampler', choices=flags.sampler_list,
-                                                   value=modules.config.default_sampler)
-                        scheduler_name = gr.Dropdown(label='Scheduler', choices=flags.scheduler_list,
-                                                     value=modules.config.default_scheduler)
                         vae_name = gr.Dropdown(label='VAE', choices=[modules.flags.default_vae] + modules.config.vae_filenames,
                                                      value=modules.config.default_vae, show_label=True)
 
@@ -704,14 +719,6 @@ with shared.gradio_root:
                                                           info='(Experimental) This may cause performance problems on some computers and certain internet conditions.',
                                                           value=False)
 
-                        overwrite_step = gr.Slider(label='Forced Overwrite of Sampling Step',
-                                                   minimum=-1, maximum=200, step=1,
-                                                   value=modules.config.default_overwrite_step,
-                                                   info='Set as -1 to disable. For developer debugging.')
-                        overwrite_switch = gr.Slider(label='Forced Overwrite of Refiner Switch Step',
-                                                     minimum=-1, maximum=200, step=1,
-                                                     value=modules.config.default_overwrite_switch,
-                                                     info='Set as -1 to disable. For developer debugging.')
                         overwrite_width = gr.Slider(label='Forced Overwrite of Generating Width',
                                                     minimum=-1, maximum=2048, step=1, value=-1,
                                                     info='Set as -1 to disable. For developer debugging. '
@@ -720,13 +727,6 @@ with shared.gradio_root:
                                                      minimum=-1, maximum=2048, step=1, value=-1,
                                                      info='Set as -1 to disable. For developer debugging. '
                                                           'Results will be worse for non-standard numbers that SDXL is not trained on.')
-                        overwrite_vary_strength = gr.Slider(label='Forced Overwrite of Denoising Strength of "Vary"',
-                                                            minimum=-1, maximum=1.0, step=0.001, value=-1,
-                                                            info='Set as negative number to disable. For developer debugging.')
-                        overwrite_upscale_strength = gr.Slider(label='Forced Overwrite of Denoising Strength of "Upscale"',
-                                                               minimum=-1, maximum=1.0, step=0.001,
-                                                               value=modules.config.default_overwrite_upscale,
-                                                               info='Set as negative number to disable. For developer debugging.')
 
                         disable_preview = gr.Checkbox(label='Disable Preview', value=modules.config.default_black_out_nsfw,
                                                       interactive=not modules.config.default_black_out_nsfw,
